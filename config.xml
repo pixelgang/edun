@@ -19,8 +19,10 @@
 	<access origin="*" />
 
 	<plugin name="cordova-plugin-ad-admob" />
+	<plugin name="cordova-plugin-file" />
 	<plugin name="cordova-plugin-inappbrowser" />
 	<plugin name="cordova-plugin-whitelist" />
+	<plugin name="cordova-plugin-wkwebview-engine" />
 
 
 	<engine name="ios" />

@@ -18,8 +18,6 @@
 	<preference name="android-minSdkVersion" value="21" />
 	<access origin="*" />
 
-	
-	<plugin name="com.mcm.plugins.androidinappbilling" />
 	<plugin name="cordova-plugin-inappbrowser" />
 	<plugin name="cordova-plugin-whitelist" />
 	<plugin name="https://github.com/cranberrygame/cordova-plugin-ad-admob" />

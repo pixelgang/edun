@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="UTF-8" ?>
 
-<widget id="com.digitalharm.eddie" version="2.8" xmlns="http://www.w3.org/ns/widgets" xmlns:android = "http://schemas.android.com/apk/res/android" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+<widget id="com.digitalharm.eddie" version="2.9" xmlns="http://www.w3.org/ns/widgets" xmlns:android = "http://schemas.android.com/apk/res/android" xmlns:cdv="http://cordova.apache.org/ns/1.0">
 
 	<name>Eddie Underground</name>
 	<description>Collect all the coins that Eddie could carry.</description>
@@ -21,8 +21,7 @@
 	<access origin="*" />
 
 
-	<plugin name="cc.fovea.cordova.purchase" />
-	<plugin name="com.mcm.plugins.androidinappbilling" />
+	<plugin name="cordova-plugin-inapppurchase" />
 	<plugin name="cordova-plugin-inappbrowser" />
 	<plugin name="cordova-plugin-whitelist" />
 	<plugin name="https://github.com/cranberrygame/cordova-plugin-ad-admob" />

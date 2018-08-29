@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="UTF-8" ?>
-<widget id="com.digitalharm.eddie" version="2.6" xmlns="http://www.w3.org/ns/widgets" xmlns:android = "http://schemas.android.com/apk/res/android" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+<widget id="com.digitalharm.eddie" version="2.8" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
 	<name>Eddie Underground</name>
 	<description>Collect all the coins that Eddie could carry.</description>
 	<author href="digitalharmony.agency" email="support@digitalharmony.agency">Digital Harmony</author>
@@ -18,15 +18,11 @@
 	<preference name="android-minSdkVersion" value="21" />
 	<access origin="*" />
 
-	
+	<plugin name="cc.fovea.cordova.purchase" />
 	<plugin name="com.mcm.plugins.androidinappbilling" />
 	<plugin name="cordova-plugin-inappbrowser" />
 	<plugin name="cordova-plugin-whitelist" />
 	<plugin name="https://github.com/cranberrygame/cordova-plugin-ad-admob" />
-	
-	<gap:plugin name="cc.fovea.cordova.purchase" source="npm" version="6.0.0">
-   <param name="BILLING_KEY" value="MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAhY+u3mj+VnFCBm56/Uf9dnSXD8akc6RalcpZ+Q4wfqy3F517y5deAaU3bOqmrZRE6TT8vsUjHgmFqnisnf/mwneORuwopE6DtinxxQKecdJvOINLWa1nLXssNKgwRlOhdzwLbcwAzEHMX1uXSHE+UHvvzXooO98/3zweY7HRKmDoW0xULzFKdUZXgnTyvulkVsmbhWJEO6C3rrUH8hp0nJiNrBwWrfmDRyUlWadVBK5iKqLjkEmg3Na+cmihhGyZu4kko//5zXbxBAagmySWDVa93On6pNz9hleWWqM1cE+p3eIb57wiX3YrbC/FPiwxTNEPFIhMgp6/5k3FnWUM6QIDAQAB"/>
-</gap:plugin>
 
 
 	<engine name="ios" />

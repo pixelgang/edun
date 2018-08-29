@@ -1,6 +1,6 @@
 ﻿{
 	"id": "com.digitalharm.eddie",
-	"version": "3.1",
+	"version": "3.2",
 	"name": "Eddie Underground",
 	"description": "Collect all the coins that Eddie could carry.",
 	"author": "Digital Harmony",
@@ -21,9 +21,9 @@
 		"density": "xhdpi"
 	}],
 	"plugins": [
-		{ "id": "cordova-plugin-ad-admob", "version": null },
 		{ "id": "cordova-plugin-inappbrowser", "version": null },
-		{ "id": "cordova-plugin-whitelist", "version": null }
+		{ "id": "cordova-plugin-whitelist", "version": null },
+		{ "id": "https://github.com/spilgames/cordova-chartboost-plugin#59c0e1b6dac1a4dccda5295b984aa1ad2cfd9a4b", "version": null }
 	],
 	"android": {
 		"min": 21,

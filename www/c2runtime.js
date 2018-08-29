@@ -26991,7 +26991,6 @@ cr.getObjectRefTable = function () { return [
 	cr.behaviors.Platform.prototype.acts.SetEnabled,
 	cr.plugins_.Sprite.prototype.acts.StopAnim,
 	cr.plugins_.Audio.prototype.acts.SetPaused,
-	cr.plugins_.cranberrygame_CordovaAdmob.prototype.acts.ShowInterstitialAd,
 	cr.plugins_.Sprite.prototype.acts.StartAnim,
 	cr.system_object.prototype.acts.SaveState,
 	cr.plugins_.Spritefont2.prototype.cnds.CompareInstanceVar,

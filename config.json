@@ -21,6 +21,8 @@
 		"density": "xhdpi"
 	}],
 	"plugins": [
+		{ "id": "cc.fovea.cordova.purchase", "version": null },
+		{ "id": "com.mcm.plugins.androidinappbilling", "version": null },
 		{ "id": "cordova-plugin-inappbrowser", "version": null },
 		{ "id": "cordova-plugin-whitelist", "version": null },
 		{ "id": "https://github.com/cranberrygame/cordova-plugin-ad-admob", "version": null }

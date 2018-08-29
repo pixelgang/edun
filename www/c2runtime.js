@@ -19428,1531 +19428,6 @@ cr.plugins_.Browser = function(runtime)
 }());
 ;
 ;
-cr.plugins_.IAP = function(runtime)
-{
-	this.runtime = runtime;
-};
-(function ()
-{
-	var isTestMode = false;
-	/* interface:
-	function Store()
-	{
-		this.onpurchasesuccess = null;
-		this.onpurchasefail = null;
-		this.onconsumesuccess = null;
-		this.onconsumefail = null;
-		this.onstorelistingsuccess = null;
-		this.onstorelistingfail = null;
-		this.product_id_list = [];
-	};
-	Store.prototype.isAvailable = function () {};
-	Store.prototype.supportsConsumables = function () {};
-	Store.prototype.addProductIds = function (ids) {};
-	Store.prototype.isTrial = function () {};
-	Store.prototype.isLicensed = function () {};
-	Store.prototype.hasProduct = function (product_) {};
-	Store.prototype.purchaseApp = function () {};
-	Store.prototype.purchaseProduct = function (product_) {};
-	Store.prototype.restorePurchases = function () {};
-	Store.prototype.requestStoreListing = function () {};
-	Store.prototype.getAppName = function () {};
-	Store.prototype.getAppFormattedPrice = function () {};
-	Store.prototype.getProductName = function (product_) {};
-	Store.prototype.getProductFormattedPrice = function (product_) {};
-	*/
-	function Windows8Store()
-	{
-		var winStore = Windows["ApplicationModel"]["Store"];
-		this.currentApp = (isTestMode ? winStore["CurrentAppSimulator"] : winStore["CurrentApp"]);
-		var self = this;
-		/*
-		this.currentApp["licenseInformation"].addEventListener("licensechanged", function() {
-			if (self.onlicensechanged)
-				self.onlicensechanged();
-		});
-		*/
-		this.onpurchasesuccess = null;
-		this.onpurchasefail = null;
-		this.onconsumesuccess = null;
-		this.onconsumefail = null;
-		this.onstorelistingsuccess = null;
-		this.onstorelistingfail = null;
-		this.appName = "";
-		this.appFormattedPrice = "";
-		this.product_id_list = [];
-		this.lastProductListings = null;
-		if (isTestMode)
-		{
-			new Windows["UI"]["Popups"]["MessageDialog"]("Note: IAP is in Test Mode, designed for testing purchases. Before publishing, be sure to set Test Mode to 'No' in the object's properties.")["showAsync"]();
-			Windows["ApplicationModel"]["Package"]["current"]["installedLocation"]["getFileAsync"]("WindowsStoreProxy.xml").done(
-			function (file) {
-				Windows["ApplicationModel"]["Store"]["CurrentAppSimulator"]["reloadSimulatorAsync"](file).done(
-					function () {
-						console.log("[Construct 2] Test mode; loaded WindowsStoreProxy.xml");
-					},
-					function (msg) {
-						console.log("[Construct 2] Error loading WindowsStoreProxy.xml: " + msg);
-					});
-			},
-			function (msg) {
-				console.log("[Construct 2] Error loading WindowsStoreProxy.xml: " + msg);
-			});
-		}
-	};
-	Windows8Store.prototype.isAvailable = function ()
-	{
-		return true;
-	};
-	Windows8Store.prototype.supportsConsumables = function ()
-	{
-		return false;		// not yet, could add support for win 8.1+
-	};
-	Windows8Store.prototype.addProductIds = function (idstring)
-	{
-		if (idstring.indexOf(",") === -1)
-			this.product_id_list.push(idstring);
-		else
-			this.product_id_list.push.apply(this.product_id_list, idstring.split(","));
-	};
-	Windows8Store.prototype.isTrial = function ()
-	{
-		return this.currentApp["licenseInformation"]["isTrial"] && this.currentApp["licenseInformation"]["isActive"];
-	};
-	Windows8Store.prototype.isLicensed = function ()
-	{
-		return !this.currentApp["licenseInformation"]["isTrial"] && this.currentApp["licenseInformation"]["isActive"];
-	};
-	Windows8Store.prototype.hasProduct = function (product_)
-	{
-		if (product_ === "app")
-			return this.isLicensed();
-		var productLicenses = this.currentApp["licenseInformation"]["productLicenses"];
-		if (!productLicenses["hasKey"](product_))
-			return false;
-		return productLicenses["lookup"](product_)["isActive"];
-	};
-	Windows8Store.prototype.purchaseApp = function ()
-	{
-		var self = this;
-		this.currentApp["requestAppPurchaseAsync"](false).then(
-		function () {
-			console.log("[Construct 2] App purchased OK");
-			if (self.onpurchasesuccess)
-				self.onpurchasesuccess("app");
-		},
-		function (msg) {
-			console.log("[Construct 2] App purchase failed: " + msg);
-			if (self.onpurchasefail)
-				self.onpurchasefail("app", msg);
-		});
-	};
-	Windows8Store.prototype.purchaseProduct = function (product_)
-	{
-		if (product_ === "app")
-		{
-			this.purchaseApp();
-			return;
-		}
-		var self = this;
-		var productLicenses = this.currentApp["licenseInformation"]["productLicenses"];
-		this.currentApp["requestProductPurchaseAsync"](product_, false).then(
-		function () {
-			if (productLicenses["hasKey"](product_) && productLicenses["lookup"](product_)["isActive"])
-			{
-				console.log("[Construct 2] Product '" + product_ + "' purchased OK");
-				if (self.onpurchasesuccess)
-					self.onpurchasesuccess(product_);
-			}
-			else
-			{
-				console.log("[Construct 2] Product '" + product_ + "' purchase failed (cancelled?)");
-				if (self.onpurchasefail)
-					self.onpurchasefail(product_, msg);
-			}
-		},
-		function (msg) {
-			console.log("[Construct 2] Product '" + product_ + "' purchase failed: " + msg);
-			if (self.onpurchasefail)
-				self.onpurchasefail(product_, msg);
-		});
-	};
-	Windows8Store.prototype.restorePurchases = function ()
-	{
-	};
-	Windows8Store.prototype.requestStoreListing = function ()
-	{
-		var self = this;
-		this.currentApp["loadListingInformationAsync"]().then(
-		function (listing) {
-			console.log("[Construct 2] Listing information loaded");
-			self.appName = listing["name"];
-			self.appFormattedPrice = listing["formattedPrice"];
-			self.lastProductListings = listing["productListings"];
-			if (self.onstorelistingsuccess)
-				self.onstorelistingsuccess();
-		});
-	};
-	Windows8Store.prototype.getAppName = function ()
-	{
-		return this.appName;
-	};
-	Windows8Store.prototype.getAppFormattedPrice = function ()
-	{
-		return this.appFormattedPrice;
-	};
-	Windows8Store.prototype.getProductName = function (product_)
-	{
-		if (!this.lastProductListings)
-			return "";
-		if (this.lastProductListings["hasKey"](product_))
-			return this.lastProductListings["lookup"](product_)["name"];
-		else
-			return "";
-	};
-	Windows8Store.prototype.getProductFormattedPrice = function (product_)
-	{
-		if (product_ === "app")
-			return this.getAppFormattedPrice();
-		if (!this.lastProductListings)
-			return "";
-		if (this.lastProductListings["hasKey"](product_))
-			return this.lastProductListings["lookup"](product_)["formattedPrice"];
-		else
-			return "";
-	};
-	function CocoonJSStore()
-	{
-		this.onpurchasesuccess = null;
-		this.onpurchasefail = null;
-		this.onconsumesuccess = null;
-		this.onconsumefail = null;
-		this.onstorelistingsuccess = null;
-		this.onstorelistingfail = null;
-		this.product_id_list = [];			// array of product id strings
-		this.lastProductListings = [];		// array of ProductInfo structs returned from fetchProductsFromStore
-		this.storeAvailable = ((typeof CocoonJS["Store"]["nativeExtensionObjectAvailable"] !== "undefined") && CocoonJS["Store"]["canPurchase"]());
-		var self = this;
-		if (this.storeAvailable)
-		{
-			CocoonJS["Store"]["onProductPurchaseCompleted"].addEventListener(function (purchase)
-			{
-				if (self.onpurchasesuccess)
-					self.onpurchasesuccess(purchase["productId"]);
-				CocoonJS["Store"]["addPurchase"](purchase);
-				CocoonJS["Store"]["consumePurchase"](purchase["transactionId"], purchase["productId"]);
-				CocoonJS["Store"]["finishPurchase"](purchase["transactionId"]);
-			});
-			CocoonJS["Store"]["onProductPurchaseFailed"].addEventListener(function (productId, errorMessage)
-			{
-				if (self.onpurchasefail)
-					self.onpurchasefail(productId, errorMessage);
-			});
-			CocoonJS["Store"]["onConsumePurchaseCompleted"].addEventListener(function(transactionId)
-			{
-				if (self.onconsumesuccess)
-					self.onconsumesuccess(transactionId);
-			});
-			CocoonJS["Store"]["onConsumePurchaseFailed"].addEventListener(function(transactionId, errorMessage)
-			{
-				if (self.onconsumefail)
-					self.onconsumefail(transactionId, errorMessage);
-			});
-			CocoonJS["Store"]["onProductsFetchFailed"].addEventListener(function ()
-			{
-				if (self.onstorelistingfail)
-					self.onstorelistingfail();
-			});
-			CocoonJS["Store"]["onProductsFetchCompleted"].addEventListener(function (products)
-			{
-				self.lastProductListings = products;
-				if (self.onstorelistingsuccess)
-					self.onstorelistingsuccess();
-			});
-			CocoonJS["Store"]["requestInitialization"]({
-				"managed": true,
-				"sandbox": isTestMode
-			});
-			CocoonJS["Store"]["start"]();
-		}
-	};
-	CocoonJSStore.prototype.isAvailable = function ()
-	{
-		return this.storeAvailable;
-	};
-	CocoonJSStore.prototype.supportsConsumables = function ()
-	{
-		return this.isAvailable();
-	};
-	CocoonJSStore.prototype.addProductIds = function (idstring)
-	{
-		if (idstring.indexOf(",") === -1)
-			this.product_id_list.push(idstring);
-		else
-			this.product_id_list.push.apply(this.product_id_list, idstring.split(","));
-	};
-	CocoonJSStore.prototype.isTrial = function ()
-	{
-		return !this.isLicensed();
-	};
-	CocoonJSStore.prototype.isLicensed = function ()
-	{
-		return this.hasProduct("app");
-	};
-	CocoonJSStore.prototype.hasProduct = function (product_)
-	{
-		if (!this.isAvailable())
-			return false;
-		return CocoonJS["Store"]["isProductPurchased"](product_);
-	};
-	CocoonJSStore.prototype.purchaseApp = function ()
-	{
-		this.purchaseProduct("app");
-	};
-	CocoonJSStore.prototype.purchaseProduct = function (product_)
-	{
-		if (!this.isAvailable())
-			return;
-		CocoonJS["Store"]["purchaseProduct"](product_);
-	};
-	CocoonJSStore.prototype.restorePurchases = function ()
-	{
-		if (!this.isAvailable())
-			return;
-		return CocoonJS["Store"]["restorePurchases"]();
-	};
-	CocoonJSStore.prototype.requestStoreListing = function ()
-	{
-		if (!this.isAvailable())
-			return;
-		CocoonJS["Store"]["fetchProductsFromStore"](this.product_id_list);
-	};
-	CocoonJSStore.prototype.getAppName = function ()
-	{
-		return this.getProductName("app");
-	};
-	CocoonJSStore.prototype.getAppFormattedPrice = function ()
-	{
-		return this.getProductFormattedPrice("app");
-	};
-	CocoonJSStore.prototype.getProductInfoById = function (product_)
-	{
-		var i, len, p;
-		for (i = 0, len = this.lastProductListings.length; i < len; ++i)
-		{
-			p = this.lastProductListings[i];
-			if (p["productId"] === product_)
-				return p;
-		}
-		return null;
-	};
-	CocoonJSStore.prototype.getProductName = function (product_)
-	{
-		var p = this.getProductInfoById(product_);
-		return p ? p["title"] : "";
-	};
-	CocoonJSStore.prototype.getProductFormattedPrice = function (product_)
-	{
-		var p = this.getProductInfoById(product_);
-		return p ? p["localizedPrice"] : "";
-	};
-	function Blackberry10Store()
-	{
-		this.onpurchasesuccess = null;
-		this.onpurchasefail = null;
-		this.onconsumesuccess = null;
-		this.onconsumefail = null;
-		this.onstorelistingsuccess = null;
-		this.onstorelistingfail = null;
-		this.product_id_list = [];
-		this.existing_purchases = [];
-		this.product_info = {};		// map product id to info
-		if (this.isAvailable())
-			blackberry["payment"]["developmentMode"] = isTestMode;
-	};
-	Blackberry10Store.prototype.isAvailable = function ()
-	{
-		return typeof blackberry !== "undefined";
-	};
-	Blackberry10Store.prototype.supportsConsumables = function ()
-	{
-		return false;
-	};
-	Blackberry10Store.prototype.addProductIds = function (idstring)
-	{
-		if (idstring.indexOf(",") === -1)
-			this.product_id_list.push(idstring);
-		else
-			this.product_id_list.push.apply(this.product_id_list, idstring.split(","));
-	};
-	Blackberry10Store.prototype.isTrial = function ()
-	{
-		return !this.isLicensed();
-	};
-	Blackberry10Store.prototype.isLicensed = function ()
-	{
-		return this.hasProduct("app");
-	};
-	Blackberry10Store.prototype.hasProduct = function (product_)
-	{
-		return this.existing_purchases.indexOf(product_) !== -1;
-	};
-	Blackberry10Store.prototype.purchaseApp = function ()
-	{
-		this.purchaseProduct("app");
-	};
-	Blackberry10Store.prototype.purchaseProduct = function (product_)
-	{
-		if (!this.isAvailable())
-			return;
-		var self = this;
-		blackberry["payment"]["purchase"]({ "digitalGoodID": product_ }, function (e)
-		{
-			if (self.existing_purchases.indexOf(product_) === -1)
-				self.existing_purchases.push(product_);
-			if (self.onpurchasesuccess)
-				self.onpurchasesuccess(product_);
-		}, function (e)
-		{
-			if (self.onpurchasefail)
-				self.onpurchasefail(product_, e["errorText"]);
-		});
-	};
-	Blackberry10Store.prototype.restorePurchases = function ()
-	{
-		if (!this.isAvailable())
-			return;
-		blackberry["payment"]["getExistingPurchases"](true, function (e)
-		{
-			var i, len, p;
-			for (i = 0, len = e.length; i < len; ++i)
-			{
-				p = e[i]["digitalGoodID"];
-				if (self.existing_purchases.indexOf(p) === -1)
-					self.existing_purchases.push(p);
-			}
-		}, function (e)
-		{
-		});
-	};
-	Blackberry10Store.prototype.requestStoreListing = function ()
-	{
-		if (!this.isAvailable())
-			return;
-		var self = this;
-		var i, len, p;
-		for (i = 0, len = this.product_id_list.length; i < len; ++i)
-		{
-			p = this.product_id_list[i];
-			(function (id) {
-				blackberry["payment"]["getPrice"]({ "id": id, "digitalGoodID": id }, function (e)
-				{
-					self.product_info[id] = { price: e["price"] };
-				}, function (e) {
-				});
-			})(p);
-		}
-		blackberry["payment"]["getExistingPurchases"](true, function (e)
-		{
-			var i, len, p;
-			for (i = 0, len = e.length; i < len; ++i)
-			{
-				p = e[i]["digitalGoodID"];
-				if (self.existing_purchases.indexOf(p) === -1)
-					self.existing_purchases.push(p);
-			}
-			if (self.onstorelistingsuccess)
-				self.onstorelistingsuccess();
-		}, function (e)
-		{
-			if (self.onstorelistingfail)
-				self.onstorelistingfail();
-		});
-	};
-	Blackberry10Store.prototype.getAppName = function ()
-	{
-		return this.getProductName("app");
-	};
-	Blackberry10Store.prototype.getAppFormattedPrice = function ()
-	{
-		return this.getProductFormattedPrice("app");
-	};
-	Blackberry10Store.prototype.getProductName = function (product_)
-	{
-		return product_;
-	};
-	Blackberry10Store.prototype.getProductFormattedPrice = function (product_)
-	{
-		if (this.product_info.hasOwnProperty(product_))
-			return this.product_info[product_].price.toString();
-		else
-			return "";
-	};
-	function AmazonStore()
-	{
-		this.onpurchasesuccess = null;		// function (productid)
-		this.onpurchasefail = null;			// function (productid, errorMessage)
-		this.onconsumesuccess = null;		// function (transactionid)
-		this.onconsumefail = null;			// function (transactionid, errorMessage)
-		this.onstorelistingsuccess = null;	// function ()
-		this.onstorelistingfail = null;		// function ()
-		this.product_id_list = [];
-		this.owned_products = [];
-		this.product_info = {};
-		var self = this;
-		if (this.isAvailable())
-		{
-			if (isTestMode)
-				amzn_wa["enableApiTester"](amzn_wa_tester);
-			amzn_wa["IAP"]["registerObserver"]({
-				"onSdkAvailable": function (e)
-				{
-					if (e["isSandboxMode"])
-						alert("Note: running in test mode. Be sure to set 'Test mode' to 'No' before publishing.");
-					amzn_wa["IAP"]["getPurchaseUpdates"](amzn_wa["IAP"]["Offset"]["BEGINNING"]);
-				},
-				"onItemDataResponse": function (e)
-				{
-					var i, len, p;
-					for (i = 0, len = e["itemData"].length; i < len; ++i)
-					{
-						p = e["itemData"][i];
-						self.product_info[p["sku"]] = {
-							title: p["title"],
-							description: p["description"],
-							price: p["price"]
-						};
-					}
-					if (self.onstorelistingsuccess)
-						self.onstorelistingsuccess();
-				},
-				"onPurchaseResponse": function (e)
-				{
-					var sku = (e["receipt"] ? e["receipt"]["sku"] : "");
-					if (e["purchaseRequestStatus"] == amzn_wa["IAP"]["PurchaseStatus"]["SUCCESSFUL"])
-					{
-						if (self.owned_products.indexOf(sku) === -1)
-							self.owned_products.push(sku);
-						if (self.onpurchasesuccess)
-							self.onpurchasesuccess(sku);
-					}
-					else
-					{
-						if (self.onpurchasefail)
-							self.onpurchasefail(sku, "purchase was not successful");
-					}
-				},
-				"onPurchaseUpdatesResponse": function (e)
-				{
-					var i, len, r;
-					for (i = 0, len = e["receipts"].length; i < len; ++i)
-					{
-						r = e["receipts"][i];
-						if (r["sku"] && self.owned_products.indexOf(r["sku"]) === -1)
-							self.owned_products.push(r["sku"]);
-					}
-				}
-			});
-			this.restorePurchases();		// won't know which products we own otherwise
-		}
-	};
-	AmazonStore.prototype.isAvailable = function ()
-	{
-		return typeof amzn_wa !== "undefined" && amzn_wa["IAP"];
-	};
-	AmazonStore.prototype.supportsConsumables = function ()
-	{
-		return false;		// not yet...
-	};
-	AmazonStore.prototype.addProductIds = function (idstring)
-	{
-		if (idstring.indexOf(",") === -1)
-			this.product_id_list.push(idstring);
-		else
-			this.product_id_list.push.apply(this.product_id_list, idstring.split(","));
-	};
-	AmazonStore.prototype.isTrial = function ()
-	{
-		return !this.isLicensed();
-	};
-	AmazonStore.prototype.isLicensed = function ()
-	{
-		return this.hasProduct("app");
-	};
-	AmazonStore.prototype.hasProduct = function (product_)
-	{
-		return this.owned_products.indexOf(product_) !== -1;
-	};
-	AmazonStore.prototype.purchaseApp = function ()
-	{
-		this.purchaseProduct("app");
-	};
-	AmazonStore.prototype.purchaseProduct = function (product_)
-	{
-		if (!this.isAvailable())
-			return;
-		amzn_wa["IAP"]["purchaseItem"](product_);
-	};
-	AmazonStore.prototype.restorePurchases = function ()
-	{
-		if (!this.isAvailable())
-			return;
-		amzn_wa["IAP"]["getPurchaseUpdates"](amzn_wa["IAP"]["Offset"]["BEGINNING"]);
-	};
-	AmazonStore.prototype.requestStoreListing = function ()
-	{
-		if (!this.isAvailable())
-			return;
-		amzn_wa["IAP"]["getItemData"](this.product_id_list);
-	};
-	AmazonStore.prototype.getAppName = function ()
-	{
-		return this.getProductName("app");
-	};
-	AmazonStore.prototype.getAppFormattedPrice = function ()
-	{
-		return this.getProductFormattedPrice("app");
-	};
-	AmazonStore.prototype.getProductName = function (product_)
-	{
-		if (this.product_info.hasOwnProperty(product_))
-			return this.product_info[product_].title;
-		else
-			return "";
-	};
-	AmazonStore.prototype.getProductFormattedPrice = function (product_)
-	{
-		if (this.product_info.hasOwnProperty(product_))
-			return this.product_info[product_].price.toString();
-		else
-			return "";
-	};
-	function TizenStore(groupId_)
-	{
-		this.onpurchasesuccess = null;		// function (productid)
-		this.onpurchasefail = null;			// function (productid, errorMessage)
-		this.onconsumesuccess = null;		// function (transactionid)
-		this.onconsumefail = null;			// function (transactionid, errorMessage)
-		this.onstorelistingsuccess = null;	// function ()
-		this.onstorelistingfail = null;		// function ()
-		this.product_id_list = [];
-		this.owned_products = [];
-		this.product_info = {};
-		this.nextTransId = 1;
-		this.groupId = groupId_;
-		var self = this;
-		if (this.isAvailable())
-		{
-			window["tizen_iap"]["RegisterCallback"]({
-				"OnItemInformationListReceived": function (transactionId, statusCode, itemInfoList)
-				{
-					if (isTizenStatusOk(statusCode))
-					{
-						var i = parseInt(itemInfoList["_startNumber"]);
-						var end = parseInt(itemInfoList["_endNumber"]) + 1;
-						for ( ; i < end; ++i)
-						{
-							var itemId = itemInfoList[i + "_itemId"] + "";
-							var itemGroupId = itemInfoList[i + "_itemGroupId"] + "";
-							var itemName = itemInfoList[i + "_itemName"] + "";
-							var itemPrice = itemInfoList[i + "_itemPrice"] + "";
-							var itemDescription = itemInfoList[i + "_itemDescription"] + "";
-							self.product_info[itemId] = {
-								title: itemName,
-								groupId: itemGroupId,
-								price: itemPrice,
-								description: itemDescription
-							};
-						}
-						if (self.onstorelistingsuccess)
-							self.onstorelistingsuccess();
-					}
-					else
-					{
-						if (self.onstorelistingfail)
-							self.onstorelistingfail();
-					}
-				},
-				"OnPurchasedItemInformationListReceived": function (transactionId, statusCode, itemInfoList)
-				{
-					if (!isTizenStatusOk(statusCode))
-						return;
-					var i = parseInt(itemInfoList["_startNumber"]);
-					var end = parseInt(itemInfoList["_endNumber"]) + 1;
-					for ( ; i < end; ++i)
-					{
-						var itemId = itemInfoList[i + "_itemId"] + "";
-						if (self.owned_products.indexOf(itemId) === -1)
-							self.owned_products.push(itemId);
-					}
-				},
-				"OnPurchaseItemInitialized": function (transactionId, statusCode, purchaseTicket)
-				{
-					return true;
-				},
-				"OnPurchaseItemFinished": function (transactionId, statusCode, itemInfo)
-				{
-					var itemId = itemInfo["_itemId"];
-					if (isTizenStatusOk(statusCode))
-					{
-						if (self.owned_products.indexOf(itemId) === -1)
-							self.owned_products.push(itemId);
-						if (self.onpurchasesuccess)
-							self.onpurchasesuccess(itemId);
-					}
-					else
-					{
-						if (self.onpurchasefail)
-							self.onpurchasefail(itemId, "purchase failed");
-					}
-				},
-				"OnCountryListReceived": function (transactionId, statusCode, countryList)
-				{
-				}
-			});
-			this.restorePurchases();		// won't be able to tell which products we own otherwise
-		}
-	};
-	function isTizenStatusOk(status)
-	{
-		return parseInt(status, 10) == 0;
-	};
-	TizenStore.prototype.isAvailable = function ()
-	{
-		return typeof window["tizen_iap"] !== "undefined";
-	};
-	TizenStore.prototype.supportsConsumables = function ()
-	{
-		return false;
-	};
-	TizenStore.prototype.addProductIds = function (idstring)
-	{
-		if (idstring.indexOf(",") === -1)
-			this.product_id_list.push(idstring);
-		else
-			this.product_id_list.push.apply(this.product_id_list, idstring.split(","));
-	};
-	TizenStore.prototype.isTrial = function ()
-	{
-		return !this.isLicensed();
-	};
-	TizenStore.prototype.isLicensed = function ()
-	{
-		return this.hasProduct("app");
-	};
-	TizenStore.prototype.hasProduct = function (product_)
-	{
-		return this.owned_products.indexOf(product_) !== -1;
-	};
-	TizenStore.prototype.purchaseApp = function ()
-	{
-		this.purchaseProduct("app");
-	};
-	TizenStore.prototype.purchaseProduct = function (product_)
-	{
-		if (!this.isAvailable())
-			return;
-		if (!this.product_info.hasOwnProperty(product_))
-		{
-			if (this.onpurchasefail)
-				this.onpurchasefail(product_, "unrecognized product id");
-		}
-		var pi = this.product_info[product_];
-		var data = {};
-		data['_itemId'] = product_;
-		data['_itemGroupId'] = pi.groupId;
-		data['_transactionId'] = this.nextTransId++;
-		if (isTestMode)
-		{
-			data['_mode'] = 1;		// developer mode
-			data['_mcc'] = "";
-			data['_mnc'] = "";
-		}
-		else
-		{
-			data['_mode'] = 0;		// commercial mode
-		}
-		data['_deviceModel'] = "tizen";		// ???
-		window["tizen_iap"]["RequestPurchaseItem"](data);
-	};
-	TizenStore.prototype.restorePurchases = function ()
-	{
-		var data = {}
-		data['_transactionId'] = this.nextTransId++;
-		data['_startNumber'] = 1;
-		data['_endNumber'] = 100;
-		data['_itemGroupId'] = this.groupId;
-		if (isTestMode)
-		{
-			data['_mode'] = 1;		// developer mode
-			data['_mcc'] = "";
-			data['_mnc'] = "";
-		}
-		else
-		{
-			data['_mode'] = 0;		// commercial mode
-		}
-		data['_deviceModel'] = "tizen";		// ???
-		window["tizen_iap"]["RequestPurchasedItemInformationList"](data);
-	};
-	TizenStore.prototype.requestStoreListing = function ()
-	{
-		var data = {}
-		data['_transactionId'] = this.nextTransId++;
-		data['_startNumber'] = 1;
-		data['_endNumber'] = 100;
-		data['_itemGroupId'] = this.groupId;
-		if (isTestMode)
-		{
-			data['_mode'] = 1;		// developer mode
-			data['_mcc'] = "";
-			data['_mnc'] = "";
-		}
-		else
-		{
-			data['_mode'] = 0;		// commercial mode
-		}
-		data['_deviceModel'] = "tizen";		// ???
-		window["tizen_iap"]["RequestItemInformationList"](data);
-	};
-	TizenStore.prototype.getAppName = function ()
-	{
-		return this.getProductName("app");
-	};
-	TizenStore.prototype.getAppFormattedPrice = function ()
-	{
-		return this.getProductFormattedPrice("app");
-	};
-	TizenStore.prototype.getProductName = function (product_)
-	{
-		if (this.product_info.hasOwnProperty(product_))
-			return this.product_info[product_].title;
-		else
-			return "";
-	};
-	TizenStore.prototype.getProductFormattedPrice = function (product_)
-	{
-		if (this.product_info.hasOwnProperty(product_))
-			return this.product_info[product_].price;
-		else
-			return "";
-	};
-	function EjectaStore()
-	{
-		this.onpurchasesuccess = null;
-		this.onpurchasefail = null;
-		this.onconsumesuccess = null;
-		this.onconsumefail = null;
-		this.onstorelistingsuccess = null;
-		this.onstorelistingfail = null;
-		this.product_id_list = [];
-		this.product_info = {};
-		this.owned_products = {};
-		this.iap = new Ejecta["IAPManager"]();
-		this.restorePurchases();		// won't know owned products otherwise
-	};
-	EjectaStore.prototype.isAvailable = function ()
-	{
-		return true;
-	};
-	EjectaStore.prototype.supportsConsumables = function ()
-	{
-		return false;
-	};
-	EjectaStore.prototype.addProductIds = function (idstring)
-	{
-		if (idstring.indexOf(",") === -1)
-			this.product_id_list.push(idstring);
-		else
-			this.product_id_list.push.apply(this.product_id_list, idstring.split(","));
-	};
-	EjectaStore.prototype.isTrial = function ()
-	{
-		return !this.isLicensed();
-	};
-	EjectaStore.prototype.isLicensed = function ()
-	{
-		return this.hasProduct("app");
-	};
-	EjectaStore.prototype.hasProduct = function (product_)
-	{
-		return this.owned_products.hasOwnProperty(product_) && this.owned_products[product_];
-	};
-	EjectaStore.prototype.purchaseApp = function ()
-	{
-		this.purchaseProduct("app");
-	};
-	EjectaStore.prototype.purchaseProduct = function (product_)
-	{
-		if (!this.product_info.hasOwnProperty(product_))
-			return;
-		var product = this.product_info[product_];
-		var self = this;
-		product["purchase"](1, function (error, transaction)
-		{
-			if (error)
-			{
-				if (self.onpurchasefail)
-					self.onpurchasefail(product_, error || "");
-				return;
-			}
-			self.owned_products[product_] = true;
-			if (self.onpurchasesuccess)
-				self.onpurchasesuccess(product_);
-		});
-	};
-	EjectaStore.prototype.restorePurchases = function ()
-	{
-		var self = this;
-		this.iap["restoreTransactions"](function (error, transactions)
-		{
-			if (error)
-				return;
-			var i, len, t;
-			for (i = 0, len = transactions.length; i < len; ++i)
-			{
-				t = transactions[i];
-				self.owned_products[t["productId"]] = true;
-			}
-		});
-	};
-	EjectaStore.prototype.requestStoreListing = function ()
-	{
-		var self = this;
-		this.iap["getProducts"](this.product_id_list, function (error, products)
-		{
-			if (error)
-			{
-				if (self.onstorelistingfail)
-					self.onstorelistingfail();
-				return;
-			}
-			var i, len, p;
-			for (i = 0, len = products.length; i < len; ++i)
-			{
-				p = products[i];
-				self.product_info[p["id"]] = p;
-			}
-			if (self.onstorelistingsuccess)
-				self.onstorelistingsuccess();
-		});
-	};
-	EjectaStore.prototype.getAppName = function ()
-	{
-		return this.getProductName("app");
-	};
-	EjectaStore.prototype.getAppFormattedPrice = function ()
-	{
-		return this.getProductFormattedPrice("app");
-	};
-	EjectaStore.prototype.getProductName = function (product_)
-	{
-		if (this.product_info.hasOwnProperty(product_))
-			return this.product_info[product_]["title"];
-		else
-			return "";
-	};
-	EjectaStore.prototype.getProductFormattedPrice = function (product_)
-	{
-		if (this.product_info.hasOwnProperty(product_))
-			return this.product_info[product_]["price"];
-		else
-			return "";
-	};
-	function ChromeWebStore()
-	{
-		this.onpurchasesuccess = null;
-		this.onpurchasefail = null;
-		this.onconsumesuccess = null;
-		this.onconsumefail = null;
-		this.onstorelistingsuccess = null;
-		this.onstorelistingfail = null;
-		this.product_id_list = [];
-		this.product_info = {};
-		this.owned_products = {};
-		this.restorePurchases();		// won't know owned products otherwise
-	};
-	ChromeWebStore.prototype.isAvailable = function ()
-	{
-		return true;
-	};
-	ChromeWebStore.prototype.supportsConsumables = function ()
-	{
-		return false;
-	};
-	ChromeWebStore.prototype.addProductIds = function (idstring)
-	{
-		if (idstring.indexOf(",") === -1)
-			this.product_id_list.push(idstring);
-		else
-			this.product_id_list.push.apply(this.product_id_list, idstring.split(","));
-	};
-	ChromeWebStore.prototype.isTrial = function ()
-	{
-		return !this.isLicensed();
-	};
-	ChromeWebStore.prototype.isLicensed = function ()
-	{
-		return this.hasProduct("app");
-	};
-	ChromeWebStore.prototype.hasProduct = function (product_)
-	{
-		return this.owned_products.hasOwnProperty(product_) && this.owned_products[product_];
-	};
-	ChromeWebStore.prototype.purchaseApp = function ()
-	{
-		this.purchaseProduct("app");
-	};
-	ChromeWebStore.prototype.purchaseProduct = function (product_)
-	{
-		var self = this;
-		google["payments"]["inapp"]["buy"]({
-			"parameters": {"env": "prod"},
-			"sku": product_,
-			"success": function (purchase)
-			{
-				self.owned_products[product_] = true;
-				if (self.onpurchasesuccess)
-					self.onpurchasesuccess(product_);
-			},
-			"failure": function (purchase)
-			{
-				if (self.onpurchasefail)
-					self.onpurchasefail(product_, purchase["response"]["errorType"].toString());
-			}
-		});
-	};
-	ChromeWebStore.prototype.restorePurchases = function ()
-	{
-		var self = this;
-		google["payments"]["inapp"]["getPurchases"]({
-			"parameters": {"env": "prod"},
-			"success": function (e)
-			{
-				var details = e["response"]["details"];
-				var i, len, p;
-				for (i = 0, len = details.length; i < len; ++i)
-				{
-					p = details[i];
-					if (p["state"] === "ACTIVE")
-					{
-						self.owned_products[p["sku"]] = true;
-					}
-				}
-			},
-			"failure": function (e)
-			{
-				console.log("Failed to restore purchases", e);
-			}
-		});
-	};
-	ChromeWebStore.prototype.requestStoreListing = function ()
-	{
-		var self = this;
-		google["payments"]["inapp"]["getSkuDetails"]({
-			"parameters": {"env": "prod"},
-			"success": function (e)
-			{
-				var products = e["response"]["details"]["inAppProducts"];
-				var i, len, p;
-				for (i = 0, len = products.length; i < len; ++i)
-				{
-					p = products[i];
-					if (p["state"] !== "ACTIVE")
-						continue;
-					self.product_info[p["sku"]] = {
-						"title": p["localeData"][0]["title"],
-						"price": (parseFloat(p["prices"][0]["valueMicros"]) / 1000).toString()
-					};
-				}
-				if (self.onstorelistingsuccess)
-					self.onstorelistingsuccess();
-			},
-			"failure": function (e)
-			{
-				if (self.onstorelistingfail)
-					self.onstorelistingfail();
-			}
-		});
-	};
-	ChromeWebStore.prototype.getAppName = function ()
-	{
-		return this.getProductName("app");
-	};
-	ChromeWebStore.prototype.getAppFormattedPrice = function ()
-	{
-		return this.getProductFormattedPrice("app");
-	};
-	ChromeWebStore.prototype.getProductName = function (product_)
-	{
-		if (this.product_info.hasOwnProperty(product_))
-			return this.product_info[product_]["title"];
-		else
-			return "";
-	};
-	ChromeWebStore.prototype.getProductFormattedPrice = function (product_)
-	{
-		if (this.product_info.hasOwnProperty(product_))
-			return this.product_info[product_]["price"];
-		else
-			return "";
-	};
-	function CordovaiOSStore()
-	{
-		this.onpurchasesuccess = null;
-		this.onpurchasefail = null;
-		this.onconsumesuccess = null;
-		this.onconsumefail = null;
-		this.onstorelistingsuccess = null;
-		this.onstorelistingfail = null;
-		this.product_id_list = [];
-		this.iap = window["store"];
-		this.iap["verbosity"] = this.iap["INFO"];
-		this.loaded = false;
-		this.isReady = false;
-		this.lastProductId = "";
-		var self = this;
-		console.log("[C2 IAP] Start");
-		this.iap["ready"](function ()
-		{
-			self.isReady = true;
-			console.log("[C2 IAP] On store ready");
-			if (self.onstorelistingsuccess)
-				self.onstorelistingsuccess();
-		});
-	};
-	CordovaiOSStore.prototype.loadProductIds = function ()
-	{
-		console.log("[C2 IAP] Loading product IDs");
-		var self = this;
-		var i, len;
-		for (i = 0, len = this.product_id_list.length; i < len; ++i)
-		{
-			console.log("[C2 IAP] Registering product ID: " + this.product_id_list[i]);
-			this.iap["register"]({
-				"id": this.product_id_list[i],
-				"alias": this.product_id_list[i],
-				"type": this.iap["NON_CONSUMABLE"]
-			});
-		}
-		this.iap["when"]("product")["approved"](function(p) {
-			console.log("[C2 IAP] Product approved, finishing... [" + p["alias"] + "]");
-			p["finish"]();
-		});
-		this.iap["when"]("product")["owned"](function(p) {
-			console.log("[C2 IAP] Product owned, calling 'On purchase success' [" + p["alias"] + "]");
-			if (self.onpurchasesuccess)
-				self.onpurchasesuccess(self.lastProductId);
-		});
-		this.iap["when"]("product")["error"](function(e) {
-			console.log("[C2 IAP] Product error");
-			if (self.onpurchasefail)
-				self.onpurchasefail(self.lastProductId, "Error " + e["code"] + ": " + e["message"]);
-		});
-		this.iap["error"](function(e){
-			console.log("[C2 IAP] Error: " + e["code"] + ": " + e["message"]);
-		});
-	};
-	CordovaiOSStore.prototype.isAvailable = function ()
-	{
-		return true;
-	};
-	CordovaiOSStore.prototype.supportsConsumables = function ()
-	{
-		return false;
-	};
-	CordovaiOSStore.prototype.addProductIds = function (idstring)
-	{
-		if (idstring.indexOf(",") === -1)
-			this.product_id_list.push(idstring);
-		else
-			this.product_id_list.push.apply(this.product_id_list, idstring.split(","));
-	};
-	CordovaiOSStore.prototype.isTrial = function ()
-	{
-		return !this.isLicensed();
-	};
-	CordovaiOSStore.prototype.isLicensed = function ()
-	{
-		return this.hasProduct("app");
-	};
-	CordovaiOSStore.prototype.hasProduct = function (product_)
-	{
-		var p = this.iap["get"](product_);
-		return p && p["owned"];
-	};
-	CordovaiOSStore.prototype.purchaseApp = function ()
-	{
-		this.purchaseProduct("app");
-	};
-	CordovaiOSStore.prototype.purchaseProduct = function (product_)
-	{
-		if (!this.loaded)
-			return;
-		console.log("[C2 IAP] Purchasing '" + product_ + "'...");
-		this.lastProductId = product_;
-		this.iap["order"](product_);
-	};
-	CordovaiOSStore.prototype.restorePurchases = function ()
-	{
-		if (!this.loaded)
-			return;
-		console.log("[C2 IAP] Restoring purchases...");
-		this.iap["refresh"]();
-	};
-	CordovaiOSStore.prototype.requestStoreListing = function ()
-	{
-		console.log("[C2 IAP] Requesting store listing...");
-		if (!this.loaded)
-		{
-			this.loadProductIds();
-			this.loaded = true;
-		}
-		console.log("[C2 IAP] Requesting store listing: 'refresh'...");
-		this.iap["refresh"]();
-	};
-	CordovaiOSStore.prototype.getAppName = function ()
-	{
-		return this.getProductName("app");
-	};
-	CordovaiOSStore.prototype.getAppFormattedPrice = function ()
-	{
-		return this.getProductFormattedPrice("app");
-	};
-	CordovaiOSStore.prototype.getProductName = function (product_)
-	{
-		var p = this.iap["get"](product_);
-		if (!p)
-			return "<unknown product id>";
-		return p["title"];
-	};
-	CordovaiOSStore.prototype.getProductFormattedPrice = function (product_)
-	{
-		var p = this.iap["get"](product_);
-		if (!p)
-			return "<unknown product id>";
-		return p["price"];
-	};
-	function CordovaAndroidStore()
-	{
-		this.onpurchasesuccess = null;
-		this.onpurchasefail = null;
-		this.onconsumesuccess = null;
-		this.onconsumefail = null;
-		this.onstorelistingsuccess = null;
-		this.onstorelistingfail = null;
-		this.product_id_list = [];
-		this.product_info = {};
-		this.owned_products = {};
-		this.iap = window["inappbilling"];
-		var self = this;
-		this.iap["init"](function () {
-			window.setTimeout(function () {
-				self.restorePurchases();
-			}, 100);
-		},
-		function (e) {
-			cr.logexport("[C2] Error initialising Android IAP: " + e);
-		},
-		{ "showLog": isTestMode });
-	};
-	CordovaAndroidStore.prototype.isAvailable = function ()
-	{
-		return true;
-	};
-	CordovaAndroidStore.prototype.supportsConsumables = function ()
-	{
-		return false;
-	};
-	CordovaAndroidStore.prototype.addProductIds = function (idstring)
-	{
-		if (idstring.indexOf(",") === -1)
-			this.product_id_list.push(idstring);
-		else
-			this.product_id_list.push.apply(this.product_id_list, idstring.split(","));
-	};
-	CordovaAndroidStore.prototype.isTrial = function ()
-	{
-		return !this.isLicensed();
-	};
-	CordovaAndroidStore.prototype.isLicensed = function ()
-	{
-		return this.hasProduct("app");
-	};
-	CordovaAndroidStore.prototype.hasProduct = function (product_)
-	{
-		return this.owned_products.hasOwnProperty(product_) && this.owned_products[product_];
-	};
-	CordovaAndroidStore.prototype.purchaseApp = function ()
-	{
-		this.purchaseProduct("app");
-	};
-	CordovaAndroidStore.prototype.purchaseProduct = function (product_)
-	{
-		var self = this;
-		this.iap["buy"](function (info) {
-			self.owned_products[product_] = true;
-			if (self.onpurchasesuccess)
-				self.onpurchasesuccess(product_);
-		}, function (e) {
-			if (self.onpurchasefail)
-				self.onpurchasefail(product_, "purchase failed");
-		}, product_);
-	};
-	CordovaAndroidStore.prototype.restorePurchases = function ()
-	{
-		var self = this;
-		this.iap["getPurchases"](function (productIds) {
-			var i, len, p;
-			for (i = 0, len = productIds.length; i < len; ++i)
-			{
-				p = productIds[i];
-				self.owned_products[p["productId"]] = true;
-			}
-		}, function (e) {
-			cr.logexport("[C2] Android IAP restore purchases error: " + e);
-		});
-	};
-	CordovaAndroidStore.prototype.requestStoreListing = function ()
-	{
-		var self = this;
-		this.iap["getAvailableProducts"](function (productIds) {
-			var n, p;
-			for (n in productIds)
-			{
-				p = productIds[n];
-				self.product_info[p["productId"]] = p;		// "title", "price", "description"
-			}
-			if (self.onstorelistingsuccess)
-				self.onstorelistingsuccess();
-		}, function (e) {
-			if (self.onstorelistingfail)
-				self.onstorelistingfail();
-		});
-	}
-	CordovaAndroidStore.prototype.getAppName = function ()
-	{
-		return this.getProductName("app");
-	};
-	CordovaAndroidStore.prototype.getAppFormattedPrice = function ()
-	{
-		return this.getProductFormattedPrice("app");
-	};
-	CordovaAndroidStore.prototype.getProductName = function (product_)
-	{
-		if (this.product_info.hasOwnProperty(product_))
-			return this.product_info[product_]["title"];
-		else
-			return "";
-	};
-	CordovaAndroidStore.prototype.getProductFormattedPrice = function (product_)
-	{
-		if (this.product_info.hasOwnProperty(product_))
-			return this.product_info[product_]["price"];
-		else
-			return "";
-	};
-	var pluginProto = cr.plugins_.IAP.prototype;
-	pluginProto.Type = function(plugin)
-	{
-		this.plugin = plugin;
-		this.runtime = plugin.runtime;
-	};
-	var typeProto = pluginProto.Type.prototype;
-	typeProto.onCreate = function()
-	{
-	};
-	pluginProto.Instance = function(type)
-	{
-		this.type = type;
-		this.runtime = type.runtime;
-	};
-	var instanceProto = pluginProto.Instance.prototype;
-	instanceProto.onCreate = function()
-	{
-		this.store = null;
-		isTestMode = (this.properties[0] !== 0);
-		this.tizenGroupId = this.properties[1];
-		this.productId = "";
-		this.errorMessage = "";
-		if (this.runtime.isWinJS && !this.runtime.isWindows8Capable)
-		{
-			this.store = new Windows8Store();
-		}
-		else if (this.runtime.isCocoonJs)
-		{
-			this.store = new CocoonJSStore();
-		}
-		else if (this.runtime.isBlackberry10)
-		{
-			this.store = new Blackberry10Store();
-		}
-		else if (this.runtime.isAmazonWebApp)
-		{
-			this.store = new AmazonStore();
-		}
-		else if (this.runtime.isTizen)
-		{
-			this.store = new TizenStore(this.tizenGroupId);
-		}
-		else if (this.runtime.isEjecta)
-		{
-			this.store = new EjectaStore();
-		}
-		else if (this.runtime.isCordova)
-		{
-			if (this.runtime.isiOS && window["store"])
-			{
-				this.store = new CordovaiOSStore();
-			}
-			else if (this.runtime.isAndroid && window["inappbilling"])
-			{
-				this.store = new CordovaAndroidStore();
-			}
-		}
-		else if (window["google"] &&
-				 window["google"]["payments"] &&
-				 window["google"]["payments"]["inapp"])
-		{
-			this.store = new ChromeWebStore();
-		}
-		var self = this;
-		if (this.store)
-		{
-			this.store.onpurchasesuccess = function (product_)
-			{
-				self.productId = product_;
-				self.errorMessage = "";
-				self.runtime.trigger(cr.plugins_.IAP.prototype.cnds.OnPurchaseSuccess, self);
-				self.runtime.trigger(cr.plugins_.IAP.prototype.cnds.OnAnyPurchaseSuccess, self);
-			};
-			this.store.onpurchasefail = function (product_, error_)
-			{
-				self.productId = product_;
-				self.errorMessage = error_;
-				self.runtime.trigger(cr.plugins_.IAP.prototype.cnds.OnPurchaseFail, self);
-				self.runtime.trigger(cr.plugins_.IAP.prototype.cnds.OnAnyPurchaseFail, self);
-			};
-			this.store.onstorelistingsuccess = function ()
-			{
-				self.runtime.trigger(cr.plugins_.IAP.prototype.cnds.OnStoreListingSuccess, self);
-			};
-			this.store.onstorelistingfail = function ()
-			{
-				self.runtime.trigger(cr.plugins_.IAP.prototype.cnds.OnStoreListingFail, self);
-			};
-		}
-	};
-	instanceProto.onDestroy = function ()
-	{
-	};
-	instanceProto.saveToJSON = function ()
-	{
-		return {
-		};
-	};
-	instanceProto.loadFromJSON = function (o)
-	{
-	};
-	function Cnds() {};
-	Cnds.prototype.OnPurchaseSuccess = function (product_)
-	{
-		return product_ === this.productId;
-	};
-	Cnds.prototype.OnAnyPurchaseSuccess = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnPurchaseFail = function (product_)
-	{
-		return product_ === this.productId;
-	};
-	Cnds.prototype.OnAnyPurchaseFail = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnStoreListingSuccess = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnStoreListingFail = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.HasProduct = function (product_)
-	{
-		return this.store && this.store.hasProduct(product_);
-	};
-	Cnds.prototype.IsAvailable = function ()
-	{
-		return this.store && this.store.isAvailable();
-	};
-	Cnds.prototype.IsAppPurchased = function ()
-	{
-		return this.store && this.store.isLicensed();
-	};
-	pluginProto.cnds = new Cnds();
-	function Acts() {};
-	Acts.prototype.AddProductID = function (product_)
-	{
-		if (!this.store)
-			return;
-		this.store.addProductIds(product_);
-	};
-	Acts.prototype.PurchaseProduct = function (product_)
-	{
-		if (!this.store)
-			return;
-		this.store.purchaseProduct(product_);
-	};
-	Acts.prototype.PurchaseApp = function ()
-	{
-		if (!this.store)
-			return;
-		this.store.purchaseApp();
-	};
-	Acts.prototype.RestorePurchases = function ()
-	{
-		if (!this.store)
-			return;
-		this.store.restorePurchases();
-	};
-	Acts.prototype.RequestStoreListing = function ()
-	{
-		if (!this.store)
-			return;
-		this.store.requestStoreListing();
-	};
-	pluginProto.acts = new Acts();
-	function Exps() {};
-	Exps.prototype.ProductName = function (ret, product_)
-	{
-		ret.set_string(this.store ? this.store.getProductName(product_) : "");
-	};
-	Exps.prototype.ProductPrice = function (ret, product_)
-	{
-		ret.set_string(this.store ? this.store.getProductFormattedPrice(product_) : "");
-	};
-	Exps.prototype.AppName = function (ret)
-	{
-		ret.set_string(this.store ? this.store.getAppName() : "");
-	};
-	Exps.prototype.AppPrice = function (ret)
-	{
-		ret.set_string(this.store ? this.store.getAppFormattedPrice() : "");
-	};
-	Exps.prototype.ProductID = function (ret)
-	{
-		ret.set_string(this.productId);
-	};
-	Exps.prototype.ErrorMessage = function (ret)
-	{
-		ret.set_string(this.errorMessage);
-	};
-	pluginProto.exps = new Exps();
-}());
-;
-;
 cr.plugins_.Keyboard = function(runtime)
 {
 	this.runtime = runtime;
@@ -25788,84 +24263,27 @@ cr.plugins_.XML = function(runtime)
 	};
 	pluginProto.exps = new Exps();
 }());
-;
-;
-/*
-cr.plugins_.cranberrygame_CordovaAdmob = function(runtime)
-{
-	this.runtime = runtime;
-	Type
-		onCreate
-	Instance
-		onCreate
-		draw
-		drawGL
-	cnds
-	acts
-	exps
-};
+/* Copyright (c) 2014 Intel Corporation. All rights reserved.
+* Use of this source code is governed by a MIT-style license that can be
+* found in the LICENSE file.
 */
-cr.plugins_.cranberrygame_CordovaAdmob = function(runtime)
+;
+;
+cr.plugins_.admob = function(runtime)
 {
 	this.runtime = runtime;
 };
 (function ()
 {
-	var pluginProto = cr.plugins_.cranberrygame_CordovaAdmob.prototype;
+	var pluginProto = cr.plugins_.admob.prototype;
 	pluginProto.Type = function(plugin)
 	{
 		this.plugin = plugin;
 		this.runtime = plugin.runtime;
 	};
 	var typeProto = pluginProto.Type.prototype;
-/*
-	var fbAppID = "";
-	var fbAppSecret = "";
-*/
-	var bannerAdUnit = "";
-	var interstitialAdUnit = "";
-	var isOverlap = true;
-	var isTest = true;
-	var email = "";
-	var licenseKey = "";
 	typeProto.onCreate = function()
 	{
-/*
-		var newScriptTag=document.createElement('script');
-		newScriptTag.setAttribute("type","text/javascript");
-		newScriptTag.setAttribute("src", "mylib.js");
-		document.getElementsByTagName("head")[0].appendChild(newScriptTag);
-		var scripts=document.getElementsByTagName("script");
-		var scriptExist=false;
-		for(var i=0;i<scripts.length;i++){
-			if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
-				scriptExist=true;
-				break;
-			}
-		}
-		if(!scriptExist){
-			var newScriptTag=document.createElement("script");
-			newScriptTag.setAttribute("type","text/javascript");
-			newScriptTag.setAttribute("src", "cordova.js");
-			document.getElementsByTagName("head")[0].appendChild(newScriptTag);
-		}
-*/
-		if(this.runtime.isBlackberry10 || this.runtime.isWindows8App || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81){
-			var scripts=document.getElementsByTagName("script");
-			var scriptExist=false;
-			for(var i=0;i<scripts.length;i++){
-				if(scripts[i].src.indexOf("cordova.js")!=-1||scripts[i].src.indexOf("phonegap.js")!=-1){
-					scriptExist=true;
-					break;
-				}
-			}
-			if(!scriptExist){
-				var newScriptTag=document.createElement("script");
-				newScriptTag.setAttribute("type","text/javascript");
-				newScriptTag.setAttribute("src", "cordova.js");
-				document.getElementsByTagName("head")[0].appendChild(newScriptTag);
-			}
-		}
 	};
 	pluginProto.Instance = function(type)
 	{
@@ -25873,258 +24291,201 @@ cr.plugins_.cranberrygame_CordovaAdmob = function(runtime)
 		this.runtime = type.runtime;
 	};
 	var instanceProto = pluginProto.Instance.prototype;
+	var isSupported = false;
 	instanceProto.onCreate = function()
 	{
-/*
-		var self=this;
-		window.addEventListener("resize", function () {//cranberrygame
-			self.runtime.trigger(cr.plugins_.cranberrygame_CordovaAdmob.prototype.cnds.TriggerCondition, self);
-		});
-*/
-		if (!(this.runtime.isAndroid || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
+		if (!window["admob"])
+		{
+			cr.logexport("[Construct 2] com.cranberrygame.phonegap.plugin.ad.admob plugin is required to show Admob ads with Cordova; other platforms are not supported");
 			return;
-		if (this.runtime.isAndroid){
-			bannerAdUnit = this.properties[0];
-			interstitialAdUnit = this.properties[1];
 		}
-		else if (this.runtime.isiOS){
-			bannerAdUnit = this.properties[2];
-			interstitialAdUnit = this.properties[3];
+		isSupported = true;
+		this.AdMob = window["admob"];
+		if (this.AdMob["setLicenseKey"])
+			this.AdMob["setLicenseKey"]("support@scirra.com", "2ba99d4ff8c219cf7331c88fb3344f80");
+		var overlap = (this.properties[0] !== 0);
+		var isTesting = (this.properties[1] !== 0);
+		this.androidBannerId = this.properties[2];
+		this.androidInterstitialId = this.properties[3];
+		this.iosBannerId = this.properties[4];
+		this.iosInterstitialId = this.properties[5];
+		this.wp8BannerId = this.properties[6];
+		this.wp8InterstitialId = this.properties[7];
+		if (this.runtime.isAndroid)
+		{
+			this.bannerId = this.androidBannerId;
+			this.interstitialId = this.androidInterstitialId;
 		}
-		else if (this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81){
-			bannerAdUnit = this.properties[4];
-			interstitialAdUnit = this.properties[5];
+		else if (this.runtime.isiOS)
+		{
+			this.bannerId = this.iosBannerId;
+			this.interstitialId = this.iosInterstitialId;
 		}
-		isOverlap = this.properties[6]==0?false:true;
-		isTest = this.properties[7]==0?false:true;
-		email = "cranberrygame@yahoo.com";
-		licenseKey = "5b4b290b7b56336df0c9837521822164";
+		else if (this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81)
+		{
+			this.bannerId = this.wp8BannerId;
+			this.interstitialId = this.wp8InterstitialId;
+		}
+		else
+		{
+			this.bannerId = "";
+			this.interstitialId = "";
+		}
+		this.isShowingBannerAd = false;
+		this.isShowingInterstitial = false;
+		this.AdMob["setUp"](this.bannerId, this.interstitialId, overlap, isTesting);
 		var self = this;
-		if (typeof window["admob"] != 'undefined') {
-			setUpPlugin();
+		this.AdMob["onFullScreenAdLoaded"] = function ()
+		{
+			self.runtime.trigger(cr.plugins_.admob.prototype.cnds.OnInterstitialReceived, self);
+		};
+		this.AdMob["onInterstitialAdLoaded"] = function ()
+		{
+			self.runtime.trigger(cr.plugins_.admob.prototype.cnds.OnInterstitialReceived, self);
+		};
+		this.AdMob["onFullScreenAdShown"] = function ()
+		{
+			self.isShowingInterstitial = true;
+			self.runtime.trigger(cr.plugins_.admob.prototype.cnds.OnInterstitialPresented, self);
+		};
+		this.AdMob["onInterstitialAdShown"] = function ()
+		{
+			self.isShowingInterstitial = true;
+			self.runtime.trigger(cr.plugins_.admob.prototype.cnds.OnInterstitialPresented, self);
+		};
+		this.AdMob["onFullScreenAdClosed"] = function ()
+		{
+			self.isShowingInterstitial = false;
+			self.runtime.trigger(cr.plugins_.admob.prototype.cnds.OnInterstitialDismissed, self);
+		};
+		this.AdMob["onInterstitialAdHidden"] = function ()
+		{
+			self.isShowingInterstitial = false;
+			self.runtime.trigger(cr.plugins_.admob.prototype.cnds.OnInterstitialDismissed, self);
+		};
+		this.AdMob["onBannerAdPreloaded"] = function ()
+		{
+			self.runtime.trigger(cr.plugins_.admob.prototype.cnds.OnBannerAdReceived, self);
+		};
+	};
+	function indexToAdSize(i)
+	{
+		switch (i) {
+		case 0:		return "SMART_BANNER";
+		case 1:		return "BANNER";
+		case 2:		return "MEDIUM_RECTANGLE";
+		case 3:		return "FULL_BANNER";
+		case 4:		return "LEADERBOARD";
+		case 5:		return "SKYSCRAPER";
 		}
-		else {
-			setTimeout(setUpPlugin,600);
+		return "SMART_BANNER";
+	};
+	function indexToAdPosition(i)
+	{
+		switch (i) {
+		case 0:		return "top-left";
+		case 1:		return "top-center";
+		case 2:		return "top-right";
+		case 3:		return "left";
+		case 4:		return "center";
+		case 5:		return "right";
+		case 6:		return "bottom-left";
+		case 7:		return "bottom-center";
+		case 8:		return "bottom-right";
 		}
-		function setUpPlugin() {
-			window["admob"]["setLicenseKey"](email, licenseKey);
-			window["admob"]["setUp"](bannerAdUnit, interstitialAdUnit, isOverlap, isTest);
-			window["admob"]['onBannerAdPreloaded'] = function() {
-				self.runtime.trigger(cr.plugins_.cranberrygame_CordovaAdmob.prototype.cnds.OnBannerAdPreloaded, self);
-			};
-			window["admob"]['onBannerAdLoaded'] = function() {
-				self.runtime.trigger(cr.plugins_.cranberrygame_CordovaAdmob.prototype.cnds.OnBannerAdLoaded, self);
-			};
-			window["admob"]['onBannerAdShown'] = function() {
-				self.runtime.trigger(cr.plugins_.cranberrygame_CordovaAdmob.prototype.cnds.OnBannerAdShown, self);
-			};
-			window["admob"]['onBannerAdHidden'] = function() {
-				self.runtime.trigger(cr.plugins_.cranberrygame_CordovaAdmob.prototype.cnds.OnBannerAdHidden, self);
-			};
-			window["admob"]['onInterstitialAdPreloaded'] = function() {
-				self.runtime.trigger(cr.plugins_.cranberrygame_CordovaAdmob.prototype.cnds.OnInterstitialAdPreloaded, self);
-			};
-			window["admob"]['onInterstitialAdLoaded'] = function() {
-				self.runtime.trigger(cr.plugins_.cranberrygame_CordovaAdmob.prototype.cnds.OnInterstitialAdLoaded, self);
-			};
-			window["admob"]['onInterstitialAdShown'] = function() {
-				self.runtime.trigger(cr.plugins_.cranberrygame_CordovaAdmob.prototype.cnds.OnInterstitialAdShown, self);
-			};
-			window["admob"]['onInterstitialAdHidden'] = function() {
-				self.runtime.trigger(cr.plugins_.cranberrygame_CordovaAdmob.prototype.cnds.OnInterstitialAdHidden, self);
-			};
-		}
+		return "bottom-center";
 	};
-	instanceProto.draw = function(ctx)
-	{
-	};
-	instanceProto.drawGL = function (glw)
-	{
-	};
-/*
-	instanceProto.at = function (x)
-	{
-		return this.arr[x];
-	};
-	instanceProto.set = function (x, val)
-	{
-		this.arr[x] = val;
-	};
-*/
 	function Cnds() {};
-/*
-	Cnds.prototype.MyCondition = function (myparam)
+	Cnds.prototype.IsShowingBanner = function()
 	{
-		return myparam >= 0;
+		return this.isShowingBannerAd;
 	};
-	Cnds.prototype.TriggerCondition = function ()
+	Cnds.prototype.IsShowingInterstitial = function()
+	{
+		return this.isShowingInterstitial;
+	};
+	Cnds.prototype.OnInterstitialReceived = function()
 	{
 		return true;
 	};
-*/
-	Cnds.prototype.OnBannerAdPreloaded = function ()
+	Cnds.prototype.OnInterstitialPresented = function()
 	{
 		return true;
 	};
-	Cnds.prototype.OnBannerAdLoaded = function ()
+	Cnds.prototype.OnInterstitialDismissed = function()
 	{
 		return true;
 	};
-	Cnds.prototype.OnBannerAdShown = function ()
+	Cnds.prototype.OnBannerAdReceived = function()
 	{
 		return true;
-	};
-	Cnds.prototype.OnBannerAdHidden = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnInterstitialAdPreloaded = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnInterstitialAdLoaded = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnInterstitialAdShown = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.OnInterstitialAdHidden = function ()
-	{
-		return true;
-	};
-	Cnds.prototype.IsShowingBannerAd = function ()
-	{
-	    if (typeof window["admob"] == 'undefined')
-			return false;
-		return window["admob"]["isShowingBannerAd"]();
-	};
-	Cnds.prototype.IsShowingInterstitialAd = function ()
-	{
-	    if (typeof window["admob"] == 'undefined')
-			return false;
-		return window["admob"]["isShowingInterstitialAd"]();
-	};
-	Cnds.prototype.LoadedBannerAd = function ()
-	{
-	    if (typeof window["admob"] == 'undefined')
-			return false;
-		return window["admob"]["loadedBannerAd"]();
-	};
-	Cnds.prototype.LoadedInterstitialAd = function ()
-	{
-	    if (typeof window["admob"] == 'undefined')
-			return false;
-		return window["admob"]["loadedInterstitialAd"]();
 	};
 	pluginProto.cnds = new Cnds();
 	function Acts() {};
-/*
-	Acts.prototype.MyAction = function (myparam)
+	Acts.prototype.ShowBanner = function (pos_, size_)
 	{
-		alert(myparam);
+		if (!isSupported)
+			return;
+		this.AdMob["showBannerAd"](indexToAdPosition(pos_), indexToAdSize(size_));
+		this.isShowingBannerAd = true;
 	};
-	Acts.prototype.TriggerAction = function ()
+	Acts.prototype.AutoShowInterstitial = function ()
 	{
-		var self=this;
-		self.runtime.trigger(cr.plugins_.cranberrygame_CordovaAdmob.prototype.cnds.TriggerCondition, self);
+		if (!isSupported)
+			return;
+		if (this.AdMob["showInterstitialAd"])
+			this.AdMob["showInterstitialAd"]();
+		else if (this.AdMob["showFullScreenAd"])
+			this.AdMob["showFullScreenAd"]();
 	};
-*/
-	Acts.prototype.PreloadBannerAd = function ()
+	Acts.prototype.PreloadInterstitial = function ()
 	{
-		if (!(this.runtime.isAndroid || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
+		if (!isSupported)
 			return;
-        if (typeof window["admob"] == 'undefined')
-            return;
-		window["admob"]["preloadBannerAd"]();
-	}
-	Acts.prototype.ShowBannerAd = function (position, size)
-	{
-		if (!(this.runtime.isAndroid || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
-			return;
-        if (typeof window["admob"] == 'undefined')
-            return;
-		var positionStr = "top-center";
-		if (position==0)
-			positionStr = "top-left";
-		else if (position==1)
-			positionStr = "top-center";
-		else if (position==2)
-			positionStr = "top-right";
-		else if (position==3)
-			positionStr = "left";
-		else if (position==4)
-			positionStr = "center";
-		else if (position==5)
-			positionStr = "right";
-		else if (position==6)
-			positionStr = "bottom-left";
-		else if (position==7)
-			positionStr = "bottom-center";
-		else if (position==8)
-			positionStr = "bottom-right";
-		var sizeStr = "BANNER";
-		if (size==0)
-			sizeStr = "BANNER";
-		else if (size==1)
-			sizeStr = "LARGE_BANNER";
-		else if (size==2)
-			sizeStr = "MEDIUM_RECTANGLE";
-		else if (size==3)
-			sizeStr = "FULL_BANNER";
-		else if (size==4)
-			sizeStr = "LEADERBOARD";
-		else if (size==5)
-			sizeStr = "SKYSCRAPER";
-		else if (size==6)
-			sizeStr = "SMART_BANNER";
-		window["admob"]["showBannerAd"](positionStr, sizeStr);
+		if (this.AdMob["preloadInterstitialAd"])
+			this.AdMob["preloadInterstitialAd"]();
+		else if (this.AdMob["preloadFullScreenAd"])
+			this.AdMob["preloadFullScreenAd"]();
 	};
-	Acts.prototype.ReloadBannerAd = function ()
+	Acts.prototype.ShowInterstitial = function ()
 	{
-		if (!(this.runtime.isAndroid || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
+		if (!isSupported)
 			return;
-        if (typeof window["admob"] == 'undefined')
-            return;
-		window["admob"]["reloadBannerAd"]();
-	}
-	Acts.prototype.HideBannerAd = function ()
-	{
-		if (!(this.runtime.isAndroid || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
-			return;
-        if (typeof window["admob"] == 'undefined')
-            return;
-		window["admob"]["hideBannerAd"]();
+		if (this.AdMob["showInterstitialAd"])
+			this.AdMob["showInterstitialAd"]();
+		else if (this.AdMob["showFullScreenAd"])
+			this.AdMob["showFullScreenAd"]();
 	};
-	Acts.prototype.PreloadInterstitialAd = function ()
+	Acts.prototype.HideBanner = function ()
 	{
-		if (!(this.runtime.isAndroid || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
+		if (!isSupported)
 			return;
-        if (typeof window["admob"] == 'undefined')
-            return;
-		window["admob"]["preloadInterstitialAd"]();
-	}
-	Acts.prototype.ShowInterstitialAd = function ()
+		this.AdMob["hideBannerAd"]();
+		this.isShowingBannerAd = false;
+	};
+	Acts.prototype.ReloadInterstitial = function ()
 	{
-		if (!(this.runtime.isAndroid || this.runtime.isiOS || this.runtime.isWindowsPhone8 || this.runtime.isWindowsPhone81))
+		if (!isSupported)
 			return;
-        if (typeof window["admob"] == 'undefined')
-            return;
-		window["admob"]["showInterstitialAd"]();
+		if (this.AdMob["reloadInterstitialAd"])
+			this.AdMob["reloadInterstitialAd"]();
+		else if (this.AdMob["reloadFullScreenAd"])
+			this.AdMob["reloadFullScreenAd"]();
+	};
+	Acts.prototype.ReloadBanner = function ()
+	{
+		if (!isSupported)
+			return;
+		this.AdMob["reloadBannerAd"]();
+	};
+	Acts.prototype.PreloadBanner = function ()
+	{
+		if (!isSupported)
+			return;
+		this.AdMob["preloadBannerAd"]();
 	};
 	pluginProto.acts = new Acts();
 	function Exps() {};
-/*
-	Exps.prototype.MyExpression = function (ret)	// 'ret' must always be the first parameter - always return the expression's result through it!
-	{
-		ret.set_int(1337);				// return our value
-	};
-	Exps.prototype.Text = function (ret, param) //cranberrygame
-	{
-		ret.set_string("Hello");		// for ef_return_string
-	};
-*/
 	pluginProto.exps = new Exps();
 }());
 ;
@@ -27698,11 +26059,10 @@ cr.getObjectRefTable = function () { return [
 	cr.plugins_.Touch,
 	cr.plugins_.WebStorage,
 	cr.plugins_.XML,
+	cr.plugins_.admob,
 	cr.plugins_.AJAX,
 	cr.plugins_.Browser,
 	cr.plugins_.Audio,
-	cr.plugins_.cranberrygame_CordovaAdmob,
-	cr.plugins_.IAP,
 	cr.plugins_.Keyboard,
 	cr.plugins_.Mouse,
 	cr.plugins_.Text,
@@ -27728,10 +26088,10 @@ cr.getObjectRefTable = function () { return [
 	cr.plugins_.Sprite.prototype.acts.SetVisible,
 	cr.plugins_.Touch.prototype.cnds.OnTouchObject,
 	cr.system_object.prototype.acts.LoadState,
-	cr.system_object.prototype.acts.GoToLayout,
 	cr.plugins_.Audio.prototype.acts.StopAll,
 	cr.system_object.prototype.acts.Wait,
 	cr.plugins_.Audio.prototype.acts.Play,
+	cr.plugins_.admob.prototype.acts.ShowBanner,
 	cr.plugins_.Audio.prototype.acts.SetVolume,
 	cr.system_object.prototype.acts.AddVar,
 	cr.plugins_.Sprite.prototype.cnds.CompareInstanceVar,
@@ -27762,7 +26122,6 @@ cr.getObjectRefTable = function () { return [
 	cr.plugins_.Sprite.prototype.exps.X,
 	cr.plugins_.Sprite.prototype.exps.Y,
 	cr.system_object.prototype.cnds.Else,
-	cr.plugins_.cranberrygame_CordovaAdmob.prototype.acts.ShowBannerAd,
 	cr.plugins_.Sprite.prototype.acts.MoveToLayer,
 	cr.system_object.prototype.cnds.Compare,
 	cr.plugins_.Sprite.prototype.acts.SetCollisions,
@@ -27785,8 +26144,6 @@ cr.getObjectRefTable = function () { return [
 	cr.system_object.prototype.exps.clamp,
 	cr.system_object.prototype.exps.loadingprogress,
 	cr.system_object.prototype.cnds.OnLoadFinished,
-	cr.plugins_.IAP.prototype.acts.RequestStoreListing,
-	cr.plugins_.IAP.prototype.acts.RestorePurchases,
 	cr.plugins_.Touch.prototype.cnds.IsTouchingObject,
-	cr.plugins_.IAP.prototype.acts.PurchaseProduct
+	cr.system_object.prototype.acts.GoToLayout
 ];};

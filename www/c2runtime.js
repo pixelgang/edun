@@ -26799,6 +26799,9 @@ cr.behaviors.solid = function(runtime)
 	behaviorProto.acts = new Acts();
 }());
 cr.getObjectRefTable = function () { return [
+	cr.plugins_.Touch,
+	cr.plugins_.WebStorage,
+	cr.plugins_.XML,
 	cr.plugins_.admob,
 	cr.plugins_.AJAX,
 	cr.plugins_.Browser,
@@ -26807,11 +26810,8 @@ cr.getObjectRefTable = function () { return [
 	cr.plugins_.Mouse,
 	cr.plugins_.CV_MobileMasterIAP,
 	cr.plugins_.Text,
-	cr.plugins_.Spritefont2,
 	cr.plugins_.Sprite,
-	cr.plugins_.Touch,
-	cr.plugins_.XML,
-	cr.plugins_.WebStorage,
+	cr.plugins_.Spritefont2,
 	cr.behaviors.Platform,
 	cr.behaviors.jumpthru,
 	cr.behaviors.solid,
@@ -26896,8 +26896,5 @@ cr.getObjectRefTable = function () { return [
 	cr.system_object.prototype.cnds.OnLoadFinished,
 	cr.plugins_.CV_MobileMasterIAP.prototype.acts.purchaseProduct,
 	cr.plugins_.CV_MobileMasterIAP.prototype.cnds.onPurchaseSucceeded,
-	cr.plugins_.CV_MobileMasterIAP.prototype.cnds.hasPaidProduct,
-	cr.plugins_.Text.prototype.acts.SetText,
-	cr.plugins_.CV_MobileMasterIAP.prototype.cnds.onRestorePurchasesSucceeded,
-	cr.plugins_.CV_MobileMasterIAP.prototype.cnds.onRestorePurchasesFailed
+	cr.plugins_.CV_MobileMasterIAP.prototype.cnds.hasPaidProduct
 ];};

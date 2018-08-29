@@ -1,6 +1,6 @@
 ﻿{
 	"id": "com.digitalharm.eddie",
-	"version": "1.4",
+	"version": "1.7",
 	"name": "Eddie Underground",
 	"description": "Collect all the coins that Eddie could carry.",
 	"author": "Digital Harmony",
@@ -22,10 +22,8 @@
 	}],
 	"plugins": [
 		{ "id": "cordova-plugin-ad-admob", "version": null },
-		{ "id": "cordova-plugin-file", "version": null },
 		{ "id": "cordova-plugin-inappbrowser", "version": null },
-		{ "id": "cordova-plugin-whitelist", "version": null },
-		{ "id": "cordova-plugin-wkwebview-engine", "version": null }
+		{ "id": "cordova-plugin-whitelist", "version": null }
 	],
 	"android": {
 		"min": 21,

@@ -1,37 +1,71 @@
-﻿{
+{
 	"id": "com.digitalharm.eddie",
-	"version": "3.2",
+	"version": "1.4",
+	"versionCode": 1040000,
 	"name": "Eddie Underground",
 	"description": "Collect all the coins that Eddie could carry.",
+	"whitelist": [
+		"http://*/*",
+		"https://*/*"
+	],
 	"author": "Digital Harmony",
 	"email": "support@digitalharmony.agency",
 	"website": "digitalharmony.agency",
-	"fullscreen": "false",
-	"useragent": null,
 	"orientation": "landscape",
-	"icons": [{
-		"src": "www/icon-256.png",
-		"width": 256,
-		"height": 256,
-		"density": "xxxhdpi"
-	}, {
-		"src": "www/icon-128.png",
-		"width": 128,
-		"height": 128,
-		"density": "xhdpi"
-	}],
+	"fullscreen": false,
+	"permissions": [],
+	"icons": [
+		{
+			"src": "www/icons/icon-256.png",
+			"width": 256,
+			"height": 256,
+			"density": "xxxhdpi"
+		},
+		{
+			"src": "www/icons/icon-128.png",
+			"width": 128,
+			"height": 128,
+			"density": "xhdpi"
+		},
+		{
+			"src": "www/icons/icon-114.png",
+			"width": 114,
+			"height": 114,
+			"density": null
+		},
+		{
+			"src": "www/icons/icon-32.png",
+			"width": 32,
+			"height": 32,
+			"density": null
+		},
+		{
+			"src": "www/icons/icon-16.png",
+			"width": 16,
+			"height": 16,
+			"density": null
+		}
+	],
 	"plugins": [
-		{ "id": "cordova-plugin-inappbrowser", "version": null },
-		{ "id": "cordova-plugin-whitelist", "version": null },
-		{ "id": "https://github.com/spilgames/cordova-chartboost-plugin#59c0e1b6dac1a4dccda5295b984aa1ad2cfd9a4b", "version": null }
+		{
+			"id": "cordova-plugin-inappbrowser",
+			"version": null
+		},
+		{
+			"id": "cordova-plugin-ad-admob",
+			"version": null
+		},
+		{
+			"id": "cordova-plugin-whitelist",
+			"version": null
+		}
 	],
 	"android": {
-		"min": 21,
+		"min": 23,
 		"target": 26,
 		"plugins": []
 	},
-	"ios": {
-		"target": "9.0",
-		"plugins": []
-	}
+	"splash": "www/icons/default@2x~universal~anyany.png",
+	"ios": null,
+	"useragent": null
 }

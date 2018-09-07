@@ -25,8 +25,8 @@
 	<engine name="android" />
 
 	<platform name="android">
-		<splash src="www/icons/default@2x~universal~anyany.png" />		<preference name="android-minSdkVersion" value="23" />
-		<preference name="android-targetSdkVersion" value="26" />
+		<splash src="www/icons/default@2x~universal~anyany.png" />		<preference name="android-minSdkVersion" value="27" />
+		<preference name="android-targetSdkVersion" value="27" />
 	</platform>
 
 	<preference name="phonegap-version" value="cli-8.0.0" /></widget>

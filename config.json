@@ -61,8 +61,8 @@
 		}
 	],
 	"android": {
-		"min": 23,
-		"target": 26,
+		"min": 27,
+		"target": 27,
 		"plugins": []
 	},
 	"splash": "www/icons/default@2x~universal~anyany.png",

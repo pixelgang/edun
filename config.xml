@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<widget id="com.digitalharm.eddie" version="1.4" android-versionCode="1040000" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0" xmlns:android="http://schemas.android.com/apk/res/android">
+<widget id="com.digitalharm.eddie" version="1.6" android-versionCode="1040000" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0" xmlns:android="http://schemas.android.com/apk/res/android">
 	<name>Eddie Underground</name>
 	<description>Collect all the coins that Eddie could carry.</description>
 	<author email="support@digitalharmony.agency" href="digitalharmony.agency">Digital Harmony</author>
